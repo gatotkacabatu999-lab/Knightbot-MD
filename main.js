@@ -1178,19 +1178,24 @@ async function handleMessages(sock, messageUpdate, printLog) {
                         const sendMedia = async () => {
                             if (matched.mediaUrl && matched.mediaType) {
                                 const mt = matched.mediaType;
-                                const isLocal = matched.mediaUrl.startsWith('/uploads/');
-                                const mediaSrc = isLocal
-                                    ? fs.readFileSync(path.join(__dirname, 'public', matched.mediaUrl))
-                                    : { url: matched.mediaUrl };
-                                const displayName = matched.fileName || (isLocal ? path.basename(matched.mediaUrl) : 'file');
-                                if (mt === 'image') {
-                                    await sock.sendMessage(chatId, { image: mediaSrc, caption }, { quoted: message });
-                                } else if (mt === 'video') {
-                                    await sock.sendMessage(chatId, { video: mediaSrc, caption }, { quoted: message });
-                                } else if (mt === 'audio') {
-                                    await sock.sendMessage(chatId, { audio: mediaSrc, mimetype: 'audio/mpeg', ptt: false }, { quoted: message });
-                                } else if (mt === 'document') {
-                                    await sock.sendMessage(chatId, { document: mediaSrc, fileName: displayName, mimetype: 'application/octet-stream', caption }, { quoted: message });
+                                if (mt === 'url') {
+                                    const txt = caption ? `${caption}\n${matched.mediaUrl}` : matched.mediaUrl;
+                                    await sock.sendMessage(chatId, { text: txt }, { quoted: message });
+                                } else {
+                                    const isLocal = matched.mediaUrl.startsWith('/uploads/');
+                                    const mediaSrc = isLocal
+                                        ? fs.readFileSync(path.join(__dirname, 'public', matched.mediaUrl))
+                                        : { url: matched.mediaUrl };
+                                    const displayName = matched.fileName || (isLocal ? path.basename(matched.mediaUrl) : 'file');
+                                    if (mt === 'image') {
+                                        await sock.sendMessage(chatId, { image: mediaSrc, caption }, { quoted: message });
+                                    } else if (mt === 'video') {
+                                        await sock.sendMessage(chatId, { video: mediaSrc, caption }, { quoted: message });
+                                    } else if (mt === 'audio') {
+                                        await sock.sendMessage(chatId, { audio: mediaSrc, mimetype: 'audio/mpeg', ptt: false }, { quoted: message });
+                                    } else if (mt === 'document') {
+                                        await sock.sendMessage(chatId, { document: mediaSrc, fileName: displayName, mimetype: 'application/octet-stream', caption }, { quoted: message });
+                                    }
                                 }
                             } else if (caption) {
                                 await sock.sendMessage(chatId, { text: caption }, { quoted: message });

@@ -80,8 +80,7 @@ app.get('/api/status', (req, res) => {
     const warnings = readJSON('./data/warnings.json', {})
     const messageCount = readJSON('./data/messageCount.json', {})
     const qrState = readJSON('./data/qrState.json', {})
-
-    const connected = !!(creds && creds.me && creds.registered)
+    const connected = !!(creds && creds.me && creds.registered) || qrState.status === 'connected'
     const account = creds?.me || null
     const botInfo = readJSON('./data/botInfo.json', {})
 

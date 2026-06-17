@@ -305,6 +305,7 @@
             <label>Media Type</label>
             <select id="ccMediaType" onchange="toggleMediaFields()">
               <option value="">— Text only —</option>
+              <option value="url">🔗 URL / Link</option>
               <option value="image">🖼️ Image</option>
               <option value="video">🎬 Video</option>
               <option value="audio">🎵 Audio / Music</option>
@@ -574,7 +575,7 @@ async function loadStatus() {
     const data = await fetch('/api/status').then(r => r.json())
     currentStatus = data
 
-    const connected = data.connected
+    const connected = data.connected || data.qrStatus === 'connected'
     const dot = document.getElementById('navDot')
     const text = document.getElementById('navStatusText')
     dot.className = 'dot' + (connected ? ' online' : '')
@@ -927,10 +928,25 @@ function escapeAttr(s) {
 // ── Media source helpers ───────────────────────────────────────────────────
 function toggleMediaFields() {
   const type = document.getElementById('ccMediaType').value
-  document.getElementById('ccMediaUrlWrap').style.display = type ? '' : 'none'
+  const isUrl = type === 'url'
+  const hasMedia = !!type
+
+  document.getElementById('ccMediaUrlWrap').style.display = hasMedia ? '' : 'none'
   document.getElementById('ccFileNameWrap').style.display = type === 'document' ? '' : 'none'
-  const ph = { image: 'https://example.com/photo.jpg', video: 'https://example.com/video.mp4', audio: 'https://example.com/music.mp3', document: 'https://example.com/file.pdf' }
-  if (ph[type]) document.getElementById('ccMediaUrl').placeholder = ph[type]
+
+  // URL type: hide the From URL / Upload toggle, show URL input directly
+  const srcToggle = document.getElementById('ccMediaUrlWrap').querySelector('div.form-group:first-child')
+  if (srcToggle) srcToggle.style.display = isUrl ? 'none' : ''
+  if (isUrl) {
+    document.getElementById('ccUrlInput').style.display = ''
+    document.getElementById('ccUploadInput').style.display = 'none'
+    document.getElementById('ccMediaUrl').placeholder = 'https://example.com/page'
+    document.getElementById('ccResponse').placeholder = 'Check this out 👇 (optional caption)'
+  } else {
+    document.getElementById('ccResponse').placeholder = 'Hello! Welcome to the group 👋'
+    const ph = { image: 'https://example.com/photo.jpg', video: 'https://example.com/video.mp4', audio: 'https://example.com/music.mp3', document: 'https://example.com/file.pdf' }
+    if (ph[type]) document.getElementById('ccMediaUrl').placeholder = ph[type]
+  }
 }
 
 function setCcSource(mode) {
@@ -1048,11 +1064,13 @@ async function addCustomCommand() {
     }
   }
 
-  if (!response && !mediaUrl) { showToast('Add a response text or attach media.', 'error'); return }
+  if (!response && !mediaUrl) { showToast('Add a response text or attach media / URL.', 'error'); return }
+  if (mediaType === 'url' && !mediaUrl) { showToast('Please enter a URL.', 'error'); return }
 
   try {
     const payload = { trigger, response, description }
     if (mediaType && mediaUrl) { payload.mediaUrl = mediaUrl; payload.mediaType = mediaType }
+    if (mediaType === 'url' && mediaUrl) { payload.mediaUrl = mediaUrl; payload.mediaType = 'url' }
     if (fileName) payload.fileName = fileName
 
     const res = await fetch('/api/custom-commands', {
@@ -1168,7 +1186,7 @@ async function saveEditCustomCommand() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadStatus()
 loadSettings()
-setInterval(loadStatus, 10000)
+setInterval(loadStatus, 5000)
 </script>
 </body>
 </html>
