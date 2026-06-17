@@ -77,6 +77,19 @@ setInterval(() => {
 let phoneNumber = "911234567890"
 let owner = JSON.parse(fs.readFileSync('./data/owner.json'))
 
+// Conflict backoff tracker — persisted in file across process restarts
+function readConflictCount() {
+    try { return JSON.parse(fs.readFileSync('./data/conflictState.json', 'utf8')).count || 0 } catch { return 0 }
+}
+function writeConflictCount(n) {
+    try { fs.writeFileSync('./data/conflictState.json', JSON.stringify({ count: n, ts: Date.now() })) } catch {}
+}
+// Clear stale conflict counter (if last conflict was >10 min ago, reset)
+try {
+    const cs = JSON.parse(fs.readFileSync('./data/conflictState.json', 'utf8'))
+    if (Date.now() - (cs.ts || 0) > 10 * 60 * 1000) writeConflictCount(0)
+} catch {}
+
 global.botname = "KNIGHT BOT"
 global.themeemoji = "•"
 // Auto-use owner number so bot never prompts for phone number on restart
@@ -297,25 +310,63 @@ async function startXeonBotInc() {
         }
         
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
             const statusCode = lastDisconnect?.error?.output?.statusCode
-            
-            console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, reconnecting ${shouldReconnect}`))
-            
+            console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, status: ${statusCode}`))
+
+            // Conflict (409/440) = same session active elsewhere (WhatsApp Web, other bot instance, etc.)
+            if (statusCode === DisconnectReason.conflict || statusCode === 440 || statusCode === 409) {
+                const count = readConflictCount() + 1
+                writeConflictCount(count)
+                const backoff = Math.min(count * 20000, 120000) // 20s, 40s, 60s ... max 2min
+
+                console.log(chalk.red(`⚠️ Session conflict detected (attempt ${count}). Another device is using this session.`))
+
+                // After 5 consecutive conflicts → clear session so bot re-pairs fresh
+                if (count >= 5) {
+                    console.log(chalk.red('❌ Too many conflicts. Clearing session — bot will request a new pairing code.'))
+                    try {
+                        const sessionDir = join(__dirname, 'session')
+                        if (existsSync(sessionDir)) {
+                            fs.readdirSync(sessionDir).forEach(f => {
+                                try { fs.unlinkSync(join(sessionDir, f)) } catch (_) {}
+                            })
+                        }
+                    } catch (e) { console.error('Error clearing session:', e.message) }
+                    writeConflictCount(0)
+                    console.log(chalk.yellow('Session cleared. Restarting to re-pair in 5s...'))
+                    await delay(5000)
+                    process.exit(1)
+                    return
+                }
+
+                console.log(chalk.yellow(`Waiting ${backoff / 1000}s before retrying to let other session close...`))
+                await delay(backoff)
+                process.exit(1)
+                return
+            }
+
+            // Logged out — clear session so next start will re-pair
             if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
                 try {
                     rmSync('./session', { recursive: true, force: true })
-                    console.log(chalk.yellow('Session folder deleted. Please re-authenticate.'))
+                    console.log(chalk.yellow('Session cleared. Please re-authenticate.'))
                 } catch (error) {
                     console.error('Error deleting session:', error)
                 }
-                console.log(chalk.red('Session logged out. Please re-authenticate.'))
+                console.log(chalk.red('Logged out. Exiting — restart to re-authenticate.'))
+                process.exit(1)
+                return
             }
-            
+
+            // Reset conflict counter on clean reconnect
+            global.conflictCount = 0
+
+            // Any other error — exit cleanly so shell restarts a fresh single process
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut
             if (shouldReconnect) {
-                console.log(chalk.yellow('Reconnecting...'))
+                console.log(chalk.yellow('Reconnecting in 5s...'))
                 await delay(5000)
-                startXeonBotInc()
+                process.exit(1)
             }
         }
     })
