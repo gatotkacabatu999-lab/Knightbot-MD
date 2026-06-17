@@ -17,10 +17,9 @@ EOF
   echo '{"name":"gtts","version":"0.2.1","main":"index.js"}' > node_modules/gtts/package.json
 fi
 
-# Recreate supports-color stub if needed
-if [ ! -f "node_modules/supports-color/index.js" ]; then
-  mkdir -p node_modules/supports-color
-  cat > node_modules/supports-color/index.js << 'EOF'
+# Always overwrite supports-color stub to avoid has-flag dependency issue
+mkdir -p node_modules/supports-color
+cat > node_modules/supports-color/index.js << 'EOF'
 'use strict';
 const {env} = process;
 function translateLevel(level) {
@@ -46,8 +45,7 @@ module.exports = {
   stderr: createSupportsColor({ isTTY: process.stderr && process.stderr.isTTY }),
 };
 EOF
-  echo '{"name":"supports-color","version":"7.2.0","main":"index.js"}' > node_modules/supports-color/package.json
-fi
+echo '{"name":"supports-color","version":"7.2.0","main":"index.js"}' > node_modules/supports-color/package.json
 
 # Rebuild sharp native module if missing
 if [ ! -f "node_modules/sharp/build/Release/sharp-linux-x64.node" ]; then
