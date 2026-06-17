@@ -70,4 +70,10 @@ mkdir -p public/uploads
 mkdir -p temp
 mkdir -p tmp
 
-exec node index.js
+# Keep restarting the bot if it exits — workflow stays running (never FAILED)
+while true; do
+    node index.js
+    EXIT_CODE=$?
+    echo "⚡ Bot exited (code $EXIT_CODE). Restarting in 3s..."
+    sleep 3
+done
