@@ -1,4 +1,4 @@
-modules = ["nodejs-20"]
+modules = ["nodejs-20", "python-3.11"]
 [agent]
 expertMode = true
 stack = "BEST_EFFORT_FALLBACK"
@@ -32,3 +32,7 @@ outputType = "console"
 [deployment]
 deploymentTarget = "vm"
 run = ["bash", "start.sh"]
+
+[[ports]]
+localPort = 5000
+externalPort = 80

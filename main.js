@@ -1163,17 +1163,64 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.sora'):
                 await soraCommand(sock, chatId, message);
                 break;
-            default:
-                if (isGroup) {
-                    // Handle non-command group messages
-                    if (userMessage) {  // Make sure there's a message
-                        await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
+            default: {
+                // Check custom commands first
+                let customHandled = false;
+                try {
+                    const customCmds = JSON.parse(fs.readFileSync('./data/customCommands.json', 'utf8'));
+                    const lowerMsg = userMessage.toLowerCase();
+                    const matched = customCmds.find(c => {
+                        const t = (c.trigger || '').toLowerCase();
+                        return lowerMsg === t || lowerMsg.startsWith(t + ' ');
+                    });
+                    if (matched) {
+                        const caption = (matched.response || '').replace(/\\n/g, '\n');
+                        const sendMedia = async () => {
+                            if (matched.mediaUrl && matched.mediaType) {
+                                const mt = matched.mediaType;
+                                const isLocal = matched.mediaUrl.startsWith('/uploads/');
+                                const mediaSrc = isLocal
+                                    ? fs.readFileSync(path.join(__dirname, 'public', matched.mediaUrl))
+                                    : { url: matched.mediaUrl };
+                                const displayName = matched.fileName || (isLocal ? path.basename(matched.mediaUrl) : 'file');
+                                if (mt === 'image') {
+                                    await sock.sendMessage(chatId, { image: mediaSrc, caption }, { quoted: message });
+                                } else if (mt === 'video') {
+                                    await sock.sendMessage(chatId, { video: mediaSrc, caption }, { quoted: message });
+                                } else if (mt === 'audio') {
+                                    await sock.sendMessage(chatId, { audio: mediaSrc, mimetype: 'audio/mpeg', ptt: false }, { quoted: message });
+                                } else if (mt === 'document') {
+                                    await sock.sendMessage(chatId, { document: mediaSrc, fileName: displayName, mimetype: 'application/octet-stream', caption }, { quoted: message });
+                                }
+                            } else if (caption) {
+                                await sock.sendMessage(chatId, { text: caption }, { quoted: message });
+                            }
+                        };
+                        try {
+                            await sendMedia();
+                        } catch (sendErr) {
+                            console.error('❌ Custom command send error:', sendErr.message);
+                        }
+                        customHandled = true;
+                        commandExecuted = true;
                     }
-                    await handleTagDetection(sock, chatId, message, senderId);
-                    await handleMentionDetection(sock, chatId, message);
+                } catch (err) {
+                    if (err.code !== 'ENOENT') console.error('❌ Custom command load error:', err.message);
                 }
-                commandExecuted = false;
+
+                if (!customHandled) {
+                    if (isGroup) {
+                        // Handle non-command group messages
+                        if (userMessage) {
+                            await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
+                        }
+                        await handleTagDetection(sock, chatId, message, senderId);
+                        await handleMentionDetection(sock, chatId, message);
+                    }
+                    commandExecuted = false;
+                }
                 break;
+            }
         }
 
         // If a command was executed, show typing status after command execution

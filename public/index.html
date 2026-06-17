@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Knight Bot Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --green: #25d366;
+    --green-dim: #1a9648;
+    --red: #f85149;
+    --yellow: #e3b341;
+    --blue: #58a6ff;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --radius: 10px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  /* Nav */
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 16px; height: 60px; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--green); }
+  .nav-logo svg { width: 28px; height: 28px; }
+  .nav-status { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); animation: none; }
+  .dot.online { background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  /* Layout */
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title svg { width: 16px; height: 16px; }
+
+  /* Stat cards */
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .stat-label { font-size: 12px; color: var(--text-dim); }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+  .stat-icon { font-size: 22px; margin-bottom: 4px; }
+
+  /* Status card */
+  .status-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; display: flex; align-items: center; gap: 20px; }
+  .status-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--green-dim); display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; position: relative; overflow: hidden; }
+  .status-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .status-badge { position: absolute; bottom: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--red); border: 2px solid var(--surface); }
+  .status-badge.online { background: var(--green); }
+  .status-info { flex: 1; }
+  .status-name { font-size: 20px; font-weight: 700; }
+  .status-number { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+  .status-meta { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: rgba(37,211,102,.15); color: var(--green); }
+  .badge-blue { background: rgba(88,166,255,.15); color: var(--blue); }
+  .badge-yellow { background: rgba(227,179,65,.15); color: var(--yellow); }
+  .badge-red { background: rgba(248,81,73,.15); color: var(--red); }
+  .uptime { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+
+  /* Settings form */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
+  input, select, textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 9px 12px; color: var(--text); font-size: 14px;
+    outline: none; transition: border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--green); }
+  select option { background: var(--surface2); }
+
+  /* Buttons */
+  .btn { padding: 9px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .15s; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { background: #1db954; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--green); color: var(--green); }
+  .btn-sm { padding: 5px 14px; font-size: 12px; }
+
+  /* Tabs */
+  .tabs-wrap { position: relative; margin-bottom: 20px; }
+  .tabs-wrap::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 32px; background: linear-gradient(to right, transparent, var(--bg)); border-radius: 0 8px 8px 0; pointer-events: none; }
+  .tabs { display: flex; gap: 4px; background: var(--surface2); padding: 4px; border-radius: 8px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { padding: 7px 18px; border-radius: 6px; border: none; background: none; color: var(--text-dim); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; white-space: nowrap; flex-shrink: 0; scroll-snap-align: start; }
+  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+
+  /* Logs */
+  .log-container { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 12px; height: 320px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px; }
+  .log-entry { padding: 3px 0; border-bottom: 1px solid rgba(48,54,61,.3); line-height: 1.5; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { color: var(--text-dim); margin-right: 8px; }
+  .log-info .log-msg { color: var(--text); }
+  .log-error .log-msg { color: var(--red); }
+  .log-empty { color: var(--text-dim); font-style: italic; padding: 8px 0; }
+
+  /* Toggle switch */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-info { font-size: 14px; }
+  .toggle-info small { display: block; font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .toggle { position: relative; width: 42px; height: 22px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: var(--surface2); border-radius: 22px; cursor: pointer; border: 1px solid var(--border); transition: .2s; }
+  .slider::before { content: ''; position: absolute; width: 16px; height: 16px; background: var(--text-dim); border-radius: 50%; top: 2px; left: 2px; transition: .2s; }
+  input:checked + .slider { background: var(--green-dim); border-color: var(--green); }
+  input:checked + .slider::before { transform: translateX(20px); background: #fff; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; font-size: 14px; z-index: 999; transform: translateY(100px); opacity: 0; transition: all .3s; max-width: 320px; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: var(--green); }
+  .toast.error { border-color: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .status-card { flex-direction: column; text-align: center; }
+    .status-meta { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    Knight Bot
+  </div>
+  <div class="nav-status">
+    <div class="dot" id="navDot"></div>
+    <span id="navStatusText">Checking...</span>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- Status Card -->
+  <div class="status-card" style="margin-bottom:16px" id="statusCard">
+    <div class="status-avatar" id="statusAvatar">
+      <img id="profilePic" src="" alt="" style="display:none" onerror="this.style.display='none';document.getElementById('avatarEmoji').style.display=''" />
+      <span id="avatarEmoji">🤖</span>
+      <div class="status-badge" id="statusBadge"></div>
+    </div>
+    <div class="status-info">
+      <div class="status-name" id="statusName">Loading...</div>
+      <div class="status-number" id="statusNumber"></div>
+      <div class="status-meta" id="statusMeta"></div>
+      <div class="uptime" id="statusUptime"></div>
+    </div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="grid grid-4" style="margin-bottom:16px" id="statsGrid"></div>
+
+  <!-- Tabs content -->
+  <div class="tabs-wrap">
+    <div class="tabs" id="tabBar">
+      <button class="tab active" onclick="showTab('settings', this)">⚙️ Settings</button>
+      <button class="tab" onclick="showTab('features', this)">🔧 Features</button>
+      <button class="tab" onclick="showTab('logs', this)">📋 Logs</button>
+      <button class="tab" onclick="showTab('banned', this)">🚫 Banned</button>
+      <button class="tab" onclick="showTab('customcmds', this)">🤖 Custom Commands</button>
+      <button class="tab" onclick="showTab('session', this)">🔗 Session</button>
+    </div>
+  </div>
+
+  <!-- Settings Tab -->
+  <div id="tab-settings">
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+          Bot Identity
+        </div>
+        <div class="form-group">
+          <label>Bot Name</label>
+          <input type="text" id="botName" placeholder="Knight Bot" />
+        </div>
+        <div class="form-group">
+          <label>Bot Owner Name</label>
+          <input type="text" id="botOwner" placeholder="Professor" />
+        </div>
+        <div class="form-group">
+          <label>Pack Name (Stickers)</label>
+          <input type="text" id="packname" placeholder="Knight Bot" />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="description" placeholder="Bot description..." />
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Access & Control
+        </div>
+        <div class="form-group">
+          <label>Owner Number <span style="color:var(--text-dim)">(without + or spaces)</span></label>
+          <input type="text" id="ownerNumber" placeholder="919876543210" />
+        </div>
+        <div class="form-group">
+          <label>Command Mode</label>
+          <select id="commandMode">
+            <option value="public">Public — Anyone can use commands</option>
+            <option value="private">Private — Owner only</option>
+          </select>
+        </div>
+        <div style="margin-top:24px">
+          <button class="btn btn-green" onclick="saveSettings()" style="width:100%">💾 Save Settings</button>
+          <p style="font-size:12px;color:var(--text-dim);margin-top:8px;text-align:center">Restart the bot after saving for changes to take effect.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features Tab -->
+  <div id="tab-features" style="display:none">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Auto Features
+      </div>
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px">These are read from the bot's data files. To toggle them, use the corresponding bot commands in WhatsApp.</p>
+      <div id="featuresContent"></div>
+    </div>
+  </div>
+
+  <!-- Logs Tab -->
+  <div id="tab-logs" style="display:none">
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Console Logs
+        </span>
+        <button class="btn btn-outline btn-sm" onclick="loadLogs()">↻ Refresh</button>
+      </div>
+      <div class="log-container" id="logContainer">
+        <div class="log-empty">Loading logs...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Banned Tab -->
+  <div id="tab-banned" style="display:none">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        Banned Users
+      </div>
+      <div id="bannedContent">
+        <p style="color:var(--text-dim);font-size:13px">Loading...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Commands Tab -->
+  <div id="tab-customcmds" style="display:none">
+    <div class="grid grid-2" style="margin-bottom:16px">
+
+      <!-- Add Command Form -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Custom Command
+        </div>
+        <div class="form-group">
+          <label>Trigger <span style="color:var(--text-dim)">(must start with .)</span></label>
+          <input type="text" id="ccTrigger" placeholder=".hello" />
+        </div>
+        <div class="form-group">
+          <label>Response</label>
+          <textarea id="ccResponse" rows="4" placeholder="Hello! Welcome to the group 👋"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Description <span style="color:var(--text-dim)">(optional)</span></label>
+          <input type="text" id="ccDescription" placeholder="Greeting command" />
+        </div>
+        <div style="border-top:1px solid var(--border);margin:16px 0 14px;padding-top:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">📎 Media Attachment (optional)</div>
+          <div class="form-group">
+            <label>Media Type</label>
+            <select id="ccMediaType" onchange="toggleMediaFields()">
+              <option value="">— Text only —</option>
+              <option value="image">🖼️ Image</option>
+              <option value="video">🎬 Video</option>
+              <option value="audio">🎵 Audio / Music</option>
+              <option value="document">📄 File / Document</option>
+            </select>
+          </div>
+          <div id="ccMediaUrlWrap" style="display:none">
+            <div class="form-group">
+              <label>Source</label>
+              <div style="display:flex;gap:6px">
+                <button id="ccSrcUrlBtn" onclick="setCcSource('url')" style="flex:1;padding:7px;border-radius:6px;border:1px solid var(--green);background:var(--green);color:#000;font-size:12px;font-weight:600;cursor:pointer">🔗 From URL</button>
+                <button id="ccSrcUploadBtn" onclick="setCcSource('upload')" style="flex:1;padding:7px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:12px;font-weight:600;cursor:pointer">⬆️ Upload File</button>
+              </div>
+            </div>
+            <div class="form-group" id="ccUrlInput">
+              <label>Media URL</label>
+              <input type="url" id="ccMediaUrl" placeholder="https://example.com/image.jpg" />
+            </div>
+            <div class="form-group" id="ccUploadInput" style="display:none">
+              <label>Upload File <span style="color:var(--text-dim)">(max 64 MB)</span></label>
+              <div id="ccDropZone" onclick="document.getElementById('ccMediaFile').click()" style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s" onmouseenter="this.style.borderColor='var(--green)'" onmouseleave="this.style.borderColor='var(--border)'">
+                <div id="ccDropText" style="color:var(--text-dim);font-size:13px">📂 Click to browse, or drag & drop here</div>
+                <div id="ccUploadProgress" style="display:none;margin-top:8px">
+                  <div style="background:var(--surface2);border-radius:4px;height:6px;overflow:hidden"><div id="ccUploadBar" style="height:100%;background:var(--green);width:0%;transition:width .3s"></div></div>
+                  <div id="ccUploadStatus" style="font-size:12px;color:var(--text-dim);margin-top:4px"></div>
+                </div>
+              </div>
+              <input type="file" id="ccMediaFile" style="display:none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt" onchange="handleCcFileChange()" />
+              <input type="hidden" id="ccUploadedUrl" />
+            </div>
+          </div>
+          <div class="form-group" id="ccFileNameWrap" style="display:none">
+            <label>File Name <span style="color:var(--text-dim)">(shown to receiver)</span></label>
+            <input type="text" id="ccFileName" placeholder="file.pdf" />
+          </div>
+        </div>
+        <button class="btn btn-green" onclick="addCustomCommand()" style="width:100%">➕ Add Command</button>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:8px;text-align:center">Command is active immediately — no restart needed.</p>
+      </div>
+
+      <!-- Info Panel -->
+      <div class="card" style="display:flex;flex-direction:column;gap:12px">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          How It Works
+        </div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.7">
+          <b style="color:var(--text)">Trigger</b> — the command someone types in WhatsApp (e.g. <code style="background:var(--surface2);padding:1px 6px;border-radius:3px">.hello</code>)<br><br>
+          <b style="color:var(--text)">Response</b> — what the bot replies with. Supports any text, emojis ✅<br><br>
+          <b style="color:var(--text)">Works in</b> — both groups and private chats<br><br>
+          <b style="color:var(--text)">Priority</b> — custom commands run after all built-in commands, so they won't override existing ones.
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:12px;color:var(--text-dim)">
+          💡 <b>Tip:</b> Use <code style="background:var(--bg);padding:1px 5px;border-radius:3px">\n</code> in your response for line breaks. Example: <code style="background:var(--bg);padding:1px 5px;border-radius:3px">Line 1\nLine 2</code>
+        </div>
+        <div id="ccStats" style="font-size:13px;color:var(--text-dim);padding:10px;background:var(--surface2);border-radius:8px;text-align:center"></div>
+      </div>
+    </div>
+
+    <!-- Commands List -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between">
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Saved Commands
+        </span>
+        <button class="btn btn-outline btn-sm" onclick="loadCustomCommands()">↻ Refresh</button>
+      </div>
+      <div id="ccList"><p style="color:var(--text-dim);font-size:13px">Loading...</p></div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="ccEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;overflow-y:auto">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:480px;width:92%;margin:auto">
+        <div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Edit Command <span id="ccEditTriggerLabel" style="color:var(--green)"></span></div>
+        <input type="hidden" id="ccEditTrigger" />
+        <div class="form-group">
+          <label>Response <span style="color:var(--text-dim)">(caption if media is attached)</span></label>
+          <textarea id="ccEditResponse" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Description <span style="color:var(--text-dim)">(optional)</span></label>
+          <input type="text" id="ccEditDescription" />
+        </div>
+        <div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:12px">
+          <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">📎 Media Attachment</div>
+          <div class="form-group">
+            <label>Media Type</label>
+            <select id="ccEditMediaType" onchange="toggleEditMediaFields()">
+              <option value="">— Text only —</option>
+              <option value="image">🖼️ Image</option>
+              <option value="video">🎬 Video</option>
+              <option value="audio">🎵 Audio / Music</option>
+              <option value="document">📄 File / Document</option>
+            </select>
+          </div>
+          <div id="ccEditMediaUrlWrap" style="display:none">
+            <div class="form-group">
+              <label>Source</label>
+              <div style="display:flex;gap:6px">
+                <button id="ccEditSrcUrlBtn" onclick="setCcEditSource('url')" style="flex:1;padding:7px;border-radius:6px;border:1px solid var(--green);background:var(--green);color:#000;font-size:12px;font-weight:600;cursor:pointer">🔗 From URL</button>
+                <button id="ccEditSrcUploadBtn" onclick="setCcEditSource('upload')" style="flex:1;padding:7px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:12px;font-weight:600;cursor:pointer">⬆️ Upload File</button>
+              </div>
+            </div>
+            <div class="form-group" id="ccEditUrlInput">
+              <label>Media URL</label>
+              <input type="url" id="ccEditMediaUrl" placeholder="https://example.com/file.jpg" />
+            </div>
+            <div class="form-group" id="ccEditUploadInput" style="display:none">
+              <label>Upload File <span style="color:var(--text-dim)">(max 64 MB)</span></label>
+              <div id="ccEditDropZone" onclick="document.getElementById('ccEditMediaFile').click()" style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s" onmouseenter="this.style.borderColor='var(--green)'" onmouseleave="this.style.borderColor='var(--border)'">
+                <div id="ccEditDropText" style="color:var(--text-dim);font-size:13px">📂 Click to browse, or drag & drop here</div>
+                <div id="ccEditUploadProgress" style="display:none;margin-top:8px">
+                  <div style="background:var(--surface2);border-radius:4px;height:6px;overflow:hidden"><div id="ccEditUploadBar" style="height:100%;background:var(--green);width:0%;transition:width .3s"></div></div>
+                  <div id="ccEditUploadStatus" style="font-size:12px;color:var(--text-dim);margin-top:4px"></div>
+                </div>
+              </div>
+              <input type="file" id="ccEditMediaFile" style="display:none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt" onchange="handleCcEditFileChange()" />
+              <input type="hidden" id="ccEditUploadedUrl" />
+            </div>
+          </div>
+          <div class="form-group" id="ccEditFileNameWrap" style="display:none">
+            <label>File Name <span style="color:var(--text-dim)">(shown to receiver)</span></label>
+            <input type="text" id="ccEditFileName" placeholder="file.pdf" />
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-outline" onclick="closeCcEditModal()">Cancel</button>
+          <button class="btn btn-green" onclick="saveEditCustomCommand()">💾 Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Tab -->
+  <div id="tab-session" style="display:none">
+    <div class="grid grid-2">
+      <!-- QR Panel -->
+      <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:16px">
+        <div class="card-title" style="width:100%">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zm3 3h4v4h-4zm-3 3h3"/></svg>
+          QR Code
+        </div>
+
+        <!-- Connected state -->
+        <div id="qrConnected" style="display:none;text-align:center;padding:20px">
+          <div style="font-size:56px;margin-bottom:12px">✅</div>
+          <div style="font-weight:700;font-size:18px;color:var(--green)">Bot Connected</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-top:6px">Your WhatsApp session is active and working.</div>
+        </div>
+
+        <!-- QR waiting state -->
+        <div id="qrWaiting" style="display:none;text-align:center;padding:20px">
+          <div class="qr-spin" style="font-size:48px;margin-bottom:12px">⏳</div>
+          <div style="font-weight:600;font-size:15px">Generating QR Code...</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-top:6px">Please wait a moment.</div>
+        </div>
+
+        <!-- QR image -->
+        <div id="qrImageWrap" style="display:none;text-align:center">
+          <div style="background:#fff;padding:12px;border-radius:12px;display:inline-block;box-shadow:0 0 0 4px rgba(37,211,102,.3)">
+            <img id="qrImage" src="" alt="QR Code" style="width:220px;height:220px;display:block" />
+          </div>
+          <div style="margin-top:14px;font-size:13px;color:var(--text-dim)">Open WhatsApp → <b>Linked Devices</b> → <b>Link a Device</b></div>
+          <div id="qrExpiry" style="margin-top:6px;font-size:12px;color:var(--yellow)"></div>
+        </div>
+
+        <!-- Unknown / default -->
+        <div id="qrDefault" style="text-align:center;padding:20px">
+          <div style="font-size:48px;margin-bottom:12px">📱</div>
+          <div style="font-size:13px;color:var(--text-dim)">Loading session state...</div>
+        </div>
+
+        <button class="btn btn-outline btn-sm" onclick="loadSession()" style="margin-top:4px">↻ Refresh</button>
+      </div>
+
+      <!-- Danger Zone Panel -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Session Management
+        </div>
+
+        <div style="margin-bottom:24px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Current Session</div>
+          <div style="font-size:13px;color:var(--text-dim);line-height:1.6">
+            Your bot is linked to a WhatsApp account via a saved session. The session is stored securely on the server.
+          </div>
+          <div id="sessionAccountInfo" style="margin-top:10px;padding:12px;background:var(--surface2);border-radius:8px;font-size:13px"></div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding-top:20px">
+          <div style="font-size:14px;font-weight:600;color:var(--red);margin-bottom:6px">⚠️ Re-link to New Number</div>
+          <div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:16px">
+            This will <strong>delete the current session</strong> and restart the bot. You'll need to scan a new QR code to link a different WhatsApp number.
+          </div>
+          <button class="btn btn-sm" style="background:rgba(248,81,73,.15);color:var(--red);border:1px solid var(--red);width:100%" onclick="confirmReset()">
+            🔓 Clear Session &amp; Show QR
+          </button>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding-top:20px;margin-top:20px">
+          <div style="font-size:13px;color:var(--text-dim);line-height:1.6">
+            <b>How to re-link:</b><br>
+            1. Click "Clear Session" above<br>
+            2. Wait ~10 seconds for QR to appear<br>
+            3. Scan with WhatsApp on your phone<br>
+            4. Bot reconnects automatically ✅
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm modal -->
+  <div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:360px;width:90%;text-align:center">
+      <div style="font-size:36px;margin-bottom:12px">⚠️</div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:8px">Clear Session?</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6">This will disconnect the current WhatsApp account and show a new QR code. The bot will be offline for ~10 seconds.</div>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn" style="background:var(--red);color:#fff" onclick="doReset()">Yes, Clear It</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+let currentStatus = null
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast')
+  t.textContent = (type === 'success' ? '✅ ' : '❌ ') + msg
+  t.className = `toast ${type} show`
+  setTimeout(() => t.className = 'toast', 3000)
+}
+
+function formatUptime(s) {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60)
+  if (h > 0) return `${h}h ${m}m uptime`
+  if (m > 0) return `${m}m ${sec}s uptime`
+  return `${sec}s uptime`
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-US', { hour12: false })
+}
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll('[id^=tab-]').forEach(el => el.style.display = 'none')
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'))
+  document.getElementById('tab-' + name).style.display = ''
+  btn.classList.add('active')
+  btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  if (name === 'logs') loadLogs()
+  if (name === 'banned') loadBanned()
+  if (name === 'features') loadFeatures()
+  if (name === 'session') loadSession()
+  if (name === 'customcmds') loadCustomCommands()
+  if (name !== 'session') stopQrPoll()
+}
+
+// ── Status ───────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const data = await fetch('/api/status').then(r => r.json())
+    currentStatus = data
+
+    const connected = data.connected
+    const dot = document.getElementById('navDot')
+    const text = document.getElementById('navStatusText')
+    dot.className = 'dot' + (connected ? ' online' : '')
+    text.textContent = connected ? 'Connected' : 'Disconnected'
+
+    const badge = document.getElementById('statusBadge')
+    badge.className = 'status-badge' + (connected ? ' online' : '')
+
+    const pic = document.getElementById('profilePic')
+    const emoji = document.getElementById('avatarEmoji')
+    if (data.profilePic) {
+      pic.src = data.profilePic
+      pic.style.display = ''
+      emoji.style.display = 'none'
+    } else {
+      pic.style.display = 'none'
+      emoji.style.display = ''
+    }
+
+    document.getElementById('statusName').textContent = data.account?.name || data.botName || 'Knight Bot'
+    document.getElementById('statusNumber').textContent = data.account?.id?.split(':')[0] || 'Not connected'
+    document.getElementById('statusUptime').textContent = formatUptime(data.uptime)
+
+    const meta = document.getElementById('statusMeta')
+    meta.innerHTML = `
+      <span class="badge ${connected ? 'badge-green' : 'badge-red'}">${connected ? '🟢 Online' : '🔴 Offline'}</span>
+      <span class="badge badge-blue">v${data.version}</span>
+      <span class="badge badge-yellow">${data.commandMode === 'public' ? '🌐 Public' : '🔒 Private'}</span>
+    `
+
+    const stats = data.stats
+    const statsGrid = document.getElementById('statsGrid')
+    statsGrid.innerHTML = `
+      <div class="stat-card"><div class="stat-icon">🚫</div><div class="stat-value">${stats.banned}</div><div class="stat-label">Banned Users</div></div>
+      <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value">${stats.premium}</div><div class="stat-label">Premium Users</div></div>
+      <div class="stat-card"><div class="stat-icon">⚠️</div><div class="stat-value">${stats.warnings}</div><div class="stat-label">Warnings Issued</div></div>
+      <div class="stat-card"><div class="stat-icon">💬</div><div class="stat-value">${stats.messages}</div><div class="stat-label">Messages Handled</div></div>
+    `
+  } catch(e) {
+    document.getElementById('navStatusText').textContent = 'Error'
+  }
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  try {
+    const data = await fetch('/api/settings').then(r => r.json())
+    document.getElementById('botName').value = data.botName || ''
+    document.getElementById('botOwner').value = data.botOwner || ''
+    document.getElementById('ownerNumber').value = data.ownerNumber || ''
+    document.getElementById('commandMode').value = data.commandMode || 'public'
+    document.getElementById('packname').value = data.packname || ''
+    document.getElementById('description').value = data.description || ''
+  } catch(e) {}
+}
+
+async function saveSettings() {
+  const payload = {
+    botName: document.getElementById('botName').value.trim(),
+    botOwner: document.getElementById('botOwner').value.trim(),
+    ownerNumber: document.getElementById('ownerNumber').value.trim(),
+    commandMode: document.getElementById('commandMode').value,
+    packname: document.getElementById('packname').value.trim(),
+    description: document.getElementById('description').value.trim(),
+  }
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => r.json())
+    if (res.success) showToast(res.message)
+    else showToast(res.error || 'Failed to save', 'error')
+  } catch(e) {
+    showToast('Network error', 'error')
+  }
+}
+
+// ── Logs ─────────────────────────────────────────────────────────────────────
+async function loadLogs() {
+  try {
+    const logs = await fetch('/api/logs').then(r => r.json())
+    const container = document.getElementById('logContainer')
+    if (!logs.length) {
+      container.innerHTML = '<div class="log-empty">No logs yet...</div>'
+      return
+    }
+    container.innerHTML = logs.map(l => `
+      <div class="log-entry log-${l.level}">
+        <span class="log-time">${formatTime(l.time)}</span>
+        <span class="log-msg">${escapeHtml(l.msg)}</span>
+      </div>
+    `).join('')
+  } catch(e) {}
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+}
+
+// ── Features ─────────────────────────────────────────────────────────────────
+async function loadFeatures() {
+  try {
+    const f = await fetch('/api/features').then(r => r.json())
+    const features = [
+      { key: 'autoStatus', label: 'Auto Status View', desc: 'Automatically view WhatsApp statuses', cmd: '.autostatus on/off' },
+      { key: 'autoRead', label: 'Auto Read', desc: 'Automatically mark messages as read', cmd: '.autoread on/off' },
+      { key: 'autoTyping', label: 'Auto Typing', desc: 'Show typing indicator while processing', cmd: '.autotyping on/off' },
+      { key: 'antiDelete', label: 'Anti Delete', desc: 'Recover deleted messages in groups', cmd: '.antidelete on/off' },
+    ]
+    document.getElementById('featuresContent').innerHTML = features.map(feat => `
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div>${feat.label}</div>
+          <small>${feat.desc} · <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:11px">${feat.cmd}</code></small>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" ${f[feat.key] ? 'checked' : ''} disabled title="Use WhatsApp command to toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+    `).join('')
+  } catch(e) {}
+}
+
+// ── Banned ────────────────────────────────────────────────────────────────────
+async function loadBanned() {
+  try {
+    const list = await fetch('/api/banned').then(r => r.json())
+    const el = document.getElementById('bannedContent')
+    if (!list.length) {
+      el.innerHTML = '<p style="color:var(--text-dim);font-size:13px">No banned users. 🎉</p>'
+      return
+    }
+    el.innerHTML = `
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px">${list.length} banned user${list.length !== 1 ? 's' : ''}</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${list.map(n => `<span class="badge badge-red">🚫 ${n}</span>`).join('')}
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:12px">Use <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">.unban @user</code> in WhatsApp to remove bans.</p>
+    `
+  } catch(e) {}
+}
+
+// ── Session ───────────────────────────────────────────────────────────────────
+let qrPollTimer = null
+
+async function loadSession() {
+  try {
+    const data = await fetch('/api/session/qr').then(r => r.json())
+    const connected = document.getElementById('qrConnected')
+    const waiting   = document.getElementById('qrWaiting')
+    const imgWrap   = document.getElementById('qrImageWrap')
+    const def       = document.getElementById('qrDefault')
+
+    ;[connected, waiting, imgWrap, def].forEach(el => el.style.display = 'none')
+
+    if (data.status === 'connected') {
+      connected.style.display = ''
+      stopQrPoll()
+    } else if (data.status === 'pending' && data.qr) {
+      imgWrap.style.display = ''
+      document.getElementById('qrImage').src = data.qr
+      const age = Math.floor((Date.now() - data.timestamp) / 1000)
+      const left = Math.max(0, 60 - age)
+      document.getElementById('qrExpiry').textContent = left > 0 ? `⏱ Expires in ~${left}s` : '⚠️ QR may have expired. Click Refresh.'
+      startQrPoll()
+    } else if (data.status === 'resetting') {
+      waiting.style.display = ''
+      startQrPoll()
+    } else {
+      def.style.display = ''
+    }
+
+    // Account info panel
+    const creds = await fetch('/api/status').then(r => r.json())
+    const info = document.getElementById('sessionAccountInfo')
+    if (creds.connected && creds.account) {
+      const num = creds.account.id?.split(':')[0] || ''
+      info.innerHTML = `<span style="color:var(--green)">●</span> <b>${creds.account.name || 'Unknown'}</b> &nbsp;·&nbsp; +${num}`
+    } else {
+      info.innerHTML = `<span style="color:var(--red)">●</span> No active session`
+    }
+  } catch(e) {}
+}
+
+function startQrPoll() {
+  if (qrPollTimer) return
+  qrPollTimer = setInterval(loadSession, 4000)
+}
+
+function stopQrPoll() {
+  if (qrPollTimer) { clearInterval(qrPollTimer); qrPollTimer = null }
+}
+
+function confirmReset() {
+  document.getElementById('confirmModal').style.display = 'flex'
+}
+
+function closeModal() {
+  document.getElementById('confirmModal').style.display = 'none'
+}
+
+async function doReset() {
+  closeModal()
+  try {
+    const res = await fetch('/api/session/reset', { method: 'POST' }).then(r => r.json())
+    if (res.success) {
+      showToast('Session cleared. Waiting for QR...', 'success')
+      // Switch QR panel to waiting state immediately
+      document.getElementById('qrConnected').style.display = 'none'
+      document.getElementById('qrImageWrap').style.display = 'none'
+      document.getElementById('qrDefault').style.display = 'none'
+      document.getElementById('qrWaiting').style.display = ''
+      startQrPoll()
+    } else {
+      showToast(res.error || 'Reset failed', 'error')
+    }
+  } catch(e) {
+    showToast('Network error', 'error')
+  }
+}
+
+// ── Custom Commands ───────────────────────────────────────────────────────────
+async function loadCustomCommands() {
+  try {
+    const cmds = await fetch('/api/custom-commands').then(r => r.json())
+    const el = document.getElementById('ccList')
+    const stats = document.getElementById('ccStats')
+    stats.textContent = `${cmds.length} custom command${cmds.length !== 1 ? 's' : ''} saved`
+
+    if (!cmds.length) {
+      el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:8px 0">No custom commands yet. Add one above! 👆</p>'
+      return
+    }
+
+    const mediaIcon = { image: '🖼️', video: '🎬', audio: '🎵', document: '📄' }
+    el.innerHTML = `
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border)">
+              <th style="text-align:left;padding:8px 12px;color:var(--text-dim);font-weight:600;white-space:nowrap">Trigger</th>
+              <th style="text-align:left;padding:8px 12px;color:var(--text-dim);font-weight:600">Response / Media</th>
+              <th style="text-align:left;padding:8px 12px;color:var(--text-dim);font-weight:600">Description</th>
+              <th style="padding:8px 12px;color:var(--text-dim);font-weight:600;white-space:nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cmds.map(c => {
+              const mediaBadge = c.mediaType ? `<span class="badge badge-blue" style="margin-left:6px;font-size:11px">${mediaIcon[c.mediaType]||'📎'} ${c.mediaType}</span>` : ''
+              const responseText = c.response ? escapeHtml(c.response.substring(0,60)) + (c.response.length>60?'…':'') : '<span style="color:var(--text-dim);font-style:italic">—</span>'
+              return `
+              <tr style="border-bottom:1px solid rgba(48,54,61,.4)">
+                <td style="padding:10px 12px;white-space:nowrap">
+                  <code style="background:var(--surface2);padding:2px 8px;border-radius:4px;color:var(--green);font-size:12px">${escapeHtml(c.trigger)}</code>
+                </td>
+                <td style="padding:10px 12px;max-width:260px">${responseText}${mediaBadge}</td>
+                <td style="padding:10px 12px;color:var(--text-dim)">${escapeHtml(c.description || '—')}</td>
+                <td style="padding:10px 12px;text-align:right;white-space:nowrap">
+                  <button class="btn btn-outline btn-sm" onclick="openCcEditModal('${escapeHtml(c.trigger)}','${escapeAttr(c.response||'')}','${escapeAttr(c.description||'')}','${escapeAttr(c.mediaUrl||'')}','${escapeAttr(c.mediaType||'')}','${escapeAttr(c.fileName||'')}')" style="margin-right:6px">✏️ Edit</button>
+                  <button class="btn btn-sm" style="background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.4)" onclick="deleteCustomCommand('${escapeHtml(c.trigger)}')">🗑️ Delete</button>
+                </td>
+              </tr>`
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+  } catch(e) {
+    document.getElementById('ccList').innerHTML = '<p style="color:var(--red);font-size:13px">Failed to load commands.</p>'
+  }
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, '\\x27').replace(/"/g, '\\x22')
+}
+
+// ── Media source helpers ───────────────────────────────────────────────────
+function toggleMediaFields() {
+  const type = document.getElementById('ccMediaType').value
+  document.getElementById('ccMediaUrlWrap').style.display = type ? '' : 'none'
+  document.getElementById('ccFileNameWrap').style.display = type === 'document' ? '' : 'none'
+  const ph = { image: 'https://example.com/photo.jpg', video: 'https://example.com/video.mp4', audio: 'https://example.com/music.mp3', document: 'https://example.com/file.pdf' }
+  if (ph[type]) document.getElementById('ccMediaUrl').placeholder = ph[type]
+}
+
+function setCcSource(mode) {
+  const isUpload = mode === 'upload'
+  document.getElementById('ccUrlInput').style.display = isUpload ? 'none' : ''
+  document.getElementById('ccUploadInput').style.display = isUpload ? '' : 'none'
+  const onStyle = 'border:1px solid var(--green);background:var(--green);color:#000'
+  const offStyle = 'border:1px solid var(--border);background:transparent;color:var(--text-dim)'
+  document.getElementById('ccSrcUrlBtn').style.cssText = `flex:1;padding:7px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;${isUpload ? offStyle : onStyle}`
+  document.getElementById('ccSrcUploadBtn').style.cssText = `flex:1;padding:7px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;${isUpload ? onStyle : offStyle}`
+  if (!isUpload) document.getElementById('ccUploadedUrl').value = ''
+}
+
+function toggleEditMediaFields() {
+  const type = document.getElementById('ccEditMediaType').value
+  document.getElementById('ccEditMediaUrlWrap').style.display = type ? '' : 'none'
+  document.getElementById('ccEditFileNameWrap').style.display = type === 'document' ? '' : 'none'
+}
+
+function setCcEditSource(mode) {
+  const isUpload = mode === 'upload'
+  document.getElementById('ccEditUrlInput').style.display = isUpload ? 'none' : ''
+  document.getElementById('ccEditUploadInput').style.display = isUpload ? '' : 'none'
+  const onStyle = 'border:1px solid var(--green);background:var(--green);color:#000'
+  const offStyle = 'border:1px solid var(--border);background:transparent;color:var(--text-dim)'
+  document.getElementById('ccEditSrcUrlBtn').style.cssText = `flex:1;padding:7px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;${isUpload ? offStyle : onStyle}`
+  document.getElementById('ccEditSrcUploadBtn').style.cssText = `flex:1;padding:7px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;${isUpload ? onStyle : offStyle}`
+  if (!isUpload) document.getElementById('ccEditUploadedUrl').value = ''
+}
+
+// ── Upload helpers ─────────────────────────────────────────────────────────
+async function uploadMediaFile(file, barId, statusId, progressId, hiddenId, dropTextId) {
+  document.getElementById(progressId).style.display = ''
+  document.getElementById(dropTextId).style.display = 'none'
+  document.getElementById(statusId).textContent = `Uploading ${file.name}…`
+  document.getElementById(barId).style.width = '30%'
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/upload-media', { method: 'POST', body: fd }).then(r => r.json())
+    if (res.success) {
+      document.getElementById(barId).style.width = '100%'
+      document.getElementById(statusId).textContent = `✅ ${res.originalName} uploaded`
+      document.getElementById(hiddenId).value = res.url
+      return res
+    } else {
+      document.getElementById(statusId).textContent = `❌ ${res.error}`
+      document.getElementById(barId).style.width = '0%'
+      return null
+    }
+  } catch (e) {
+    document.getElementById(statusId).textContent = '❌ Upload failed'
+    return null
+  }
+}
+
+function handleCcFileChange() {
+  const file = document.getElementById('ccMediaFile').files[0]
+  if (!file) return
+  uploadMediaFile(file, 'ccUploadBar', 'ccUploadStatus', 'ccUploadProgress', 'ccUploadedUrl', 'ccDropText')
+}
+
+function handleCcEditFileChange() {
+  const file = document.getElementById('ccEditMediaFile').files[0]
+  if (!file) return
+  uploadMediaFile(file, 'ccEditUploadBar', 'ccEditUploadStatus', 'ccEditUploadProgress', 'ccEditUploadedUrl', 'ccEditDropText')
+}
+
+// ── Drag-and-drop setup (called after DOM ready) ───────────────────────────
+function initDropZones() {
+  ;[['ccDropZone', 'ccMediaFile', 'ccUploadBar', 'ccUploadStatus', 'ccUploadProgress', 'ccUploadedUrl', 'ccDropText'],
+    ['ccEditDropZone', 'ccEditMediaFile', 'ccEditUploadBar', 'ccEditUploadStatus', 'ccEditUploadProgress', 'ccEditUploadedUrl', 'ccEditDropText']
+  ].forEach(([zoneId, inputId, barId, statusId, progressId, hiddenId, dropTextId]) => {
+    const zone = document.getElementById(zoneId)
+    if (!zone) return
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--green)' })
+    zone.addEventListener('dragleave', () => { zone.style.borderColor = 'var(--border)' })
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.style.borderColor = 'var(--border)'
+      const file = e.dataTransfer.files[0]
+      if (file) uploadMediaFile(file, barId, statusId, progressId, hiddenId, dropTextId)
+    })
+  })
+}
+document.addEventListener('DOMContentLoaded', initDropZones)
+
+async function addCustomCommand() {
+  const trigger = document.getElementById('ccTrigger').value.trim()
+  const response = document.getElementById('ccResponse').value.trim()
+  const description = document.getElementById('ccDescription').value.trim()
+  const mediaType = document.getElementById('ccMediaType').value
+  const fileName = document.getElementById('ccFileName').value.trim()
+
+  if (!trigger) { showToast('Trigger is required.', 'error'); return }
+
+  // Determine media URL: uploaded file takes precedence over URL input
+  const isUploadMode = document.getElementById('ccUploadInput').style.display !== 'none'
+  let mediaUrl = ''
+  if (mediaType) {
+    if (isUploadMode) {
+      mediaUrl = document.getElementById('ccUploadedUrl').value.trim()
+      if (!mediaUrl) {
+        // If file not yet uploaded but file is selected, upload now
+        const fileInput = document.getElementById('ccMediaFile')
+        if (fileInput.files[0]) {
+          const upRes = await uploadMediaFile(fileInput.files[0], 'ccUploadBar', 'ccUploadStatus', 'ccUploadProgress', 'ccUploadedUrl', 'ccDropText')
+          if (!upRes) { showToast('Upload failed. Please try again.', 'error'); return }
+          mediaUrl = upRes.url
+        } else {
+          showToast('Please select a file to upload, or switch to URL mode.', 'error'); return
+        }
+      }
+    } else {
+      mediaUrl = document.getElementById('ccMediaUrl').value.trim()
+    }
+  }
+
+  if (!response && !mediaUrl) { showToast('Add a response text or attach media.', 'error'); return }
+
+  try {
+    const payload = { trigger, response, description }
+    if (mediaType && mediaUrl) { payload.mediaUrl = mediaUrl; payload.mediaType = mediaType }
+    if (fileName) payload.fileName = fileName
+
+    const res = await fetch('/api/custom-commands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => r.json())
+
+    if (res.success) {
+      showToast(res.message)
+      ;['ccTrigger','ccResponse','ccDescription','ccMediaUrl','ccFileName','ccUploadedUrl'].forEach(id => { document.getElementById(id).value = '' })
+      document.getElementById('ccMediaType').value = ''
+      document.getElementById('ccMediaFile').value = ''
+      document.getElementById('ccUploadProgress').style.display = 'none'
+      document.getElementById('ccDropText').style.display = ''
+      toggleMediaFields()
+      loadCustomCommands()
+    } else {
+      showToast(res.error || 'Failed to add command.', 'error')
+    }
+  } catch(e) { showToast('Network error', 'error') }
+}
+
+async function deleteCustomCommand(trigger) {
+  if (!confirm(`Delete command "${trigger}"?`)) return
+  try {
+    const res = await fetch('/api/custom-commands/' + encodeURIComponent(trigger), { method: 'DELETE' }).then(r => r.json())
+    if (res.success) { showToast(res.message); loadCustomCommands() }
+    else showToast(res.error || 'Failed to delete.', 'error')
+  } catch(e) { showToast('Network error', 'error') }
+}
+
+function openCcEditModal(trigger, response, description, mediaUrl, mediaType, fileName) {
+  document.getElementById('ccEditTrigger').value = trigger
+  document.getElementById('ccEditTriggerLabel').textContent = trigger
+  document.getElementById('ccEditResponse').value = (response || '').replace(/\\n/g, '\n')
+  document.getElementById('ccEditDescription').value = description || ''
+  document.getElementById('ccEditMediaType').value = mediaType || ''
+  document.getElementById('ccEditFileName').value = fileName || ''
+  // If existing media is a local upload, show it in the upload slot; else put it in URL
+  const isLocalUpload = (mediaUrl || '').startsWith('/uploads/')
+  document.getElementById('ccEditMediaUrl').value = isLocalUpload ? '' : (mediaUrl || '')
+  document.getElementById('ccEditUploadedUrl').value = isLocalUpload ? (mediaUrl || '') : ''
+  if (isLocalUpload && mediaUrl) {
+    document.getElementById('ccEditDropText').style.display = 'none'
+    document.getElementById('ccEditUploadProgress').style.display = ''
+    document.getElementById('ccEditUploadStatus').textContent = `✅ ${decodeURIComponent(mediaUrl.split('/').pop())} (uploaded)`
+    document.getElementById('ccEditUploadBar').style.width = '100%'
+  } else {
+    document.getElementById('ccEditDropText').style.display = ''
+    document.getElementById('ccEditUploadProgress').style.display = 'none'
+  }
+  toggleEditMediaFields()
+  if (mediaType) setCcEditSource(isLocalUpload ? 'upload' : 'url')
+  document.getElementById('ccEditModal').style.display = 'flex'
+}
+
+function closeCcEditModal() {
+  document.getElementById('ccEditModal').style.display = 'none'
+}
+
+async function saveEditCustomCommand() {
+  const trigger = document.getElementById('ccEditTrigger').value
+  const response = document.getElementById('ccEditResponse').value.trim()
+  const description = document.getElementById('ccEditDescription').value.trim()
+  const mediaType = document.getElementById('ccEditMediaType').value
+  const fileName = document.getElementById('ccEditFileName').value.trim()
+
+  // Resolve media URL: uploaded or URL input
+  const isUploadMode = document.getElementById('ccEditUploadInput').style.display !== 'none'
+  let mediaUrl = ''
+  if (mediaType) {
+    if (isUploadMode) {
+      mediaUrl = document.getElementById('ccEditUploadedUrl').value.trim()
+      if (!mediaUrl) {
+        const fileInput = document.getElementById('ccEditMediaFile')
+        if (fileInput.files[0]) {
+          const upRes = await uploadMediaFile(fileInput.files[0], 'ccEditUploadBar', 'ccEditUploadStatus', 'ccEditUploadProgress', 'ccEditUploadedUrl', 'ccEditDropText')
+          if (!upRes) { showToast('Upload failed. Please try again.', 'error'); return }
+          mediaUrl = upRes.url
+        } else {
+          showToast('Please select a file to upload, or switch to URL mode.', 'error'); return
+        }
+      }
+    } else {
+      mediaUrl = document.getElementById('ccEditMediaUrl').value.trim()
+    }
+  }
+
+  if (!response && !mediaUrl) { showToast('Add a response text or attach media.', 'error'); return }
+
+  try {
+    const payload = { response, description }
+    if (mediaType && mediaUrl) { payload.mediaUrl = mediaUrl; payload.mediaType = mediaType }
+    if (fileName) payload.fileName = fileName
+
+    const res = await fetch('/api/custom-commands/' + encodeURIComponent(trigger), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => r.json())
+
+    if (res.success) {
+      showToast(res.message)
+      closeCcEditModal()
+      loadCustomCommands()
+    } else {
+      showToast(res.error || 'Failed to update.', 'error')
+    }
+  } catch(e) { showToast('Network error', 'error') }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStatus()
+loadSettings()
+setInterval(loadStatus, 10000)
+</script>
+</body>
+</html>

@@ -54,4 +54,17 @@ if [ ! -f "node_modules/sharp/build/Release/sharp-linux-x64.node" ]; then
   npm rebuild sharp --ignore-scripts=false 2>/dev/null || true
 fi
 
+# Ensure express and multer are installed (required for dashboard)
+if [ ! -d "node_modules/express" ] || [ ! -d "node_modules/multer" ]; then
+  echo "📦 Installing dashboard dependencies..."
+  npm install express multer --legacy-peer-deps --silent 2>/dev/null || true
+fi
+
+# Ensure data files exist
+[ ! -f "data/customCommands.json" ] && echo '[]' > data/customCommands.json
+[ ! -f "data/botInfo.json" ] && echo '{}' > data/botInfo.json
+
+# Ensure public/uploads directory exists
+mkdir -p public/uploads
+
 exec node index.js

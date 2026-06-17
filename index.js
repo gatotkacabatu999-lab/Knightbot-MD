@@ -10,6 +10,10 @@
  * - Pair Code implementation inspired by TechGod143 & DGXEON
  */
 require('./settings')
+// Start the web dashboard inside the bot process so it shares logs/state.
+// Required early so dashboard.js's console interception captures bot logs,
+// and so /api/session/reset (process.exit) restarts the bot itself.
+require('./dashboard')
 const { Boom } = require('@hapi/boom')
 const fs = require('fs')
 const chalk = require('chalk')
