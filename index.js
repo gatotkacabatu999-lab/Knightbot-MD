@@ -353,15 +353,20 @@ async function startXeonBotInc() {
                 return
             }
 
-            // Logged out — clear session so next start will re-pair
-            if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+            // QR expired (408) OR Logged out (401) — clear ALL session files before restart
+            // Without clearing, partial creds from QR attempt cause immediate 401 on next start
+            if (statusCode === 408 || statusCode === DisconnectReason.loggedOut || statusCode === 401) {
                 try {
                     rmSync('./session', { recursive: true, force: true })
-                    console.log(chalk.yellow('Session cleared. Please re-authenticate.'))
+                    fs.mkdirSync('./session', { recursive: true })
+                    console.log(chalk.yellow('Session cleared. Will generate fresh QR on restart.'))
                 } catch (error) {
-                    console.error('Error deleting session:', error)
+                    console.error('Error clearing session:', error)
                 }
-                console.log(chalk.red('Logged out. Exiting — restart to re-authenticate.'))
+                if (statusCode === 401) {
+                    console.log(chalk.red('Logged out by WhatsApp. Waiting 10s before restart...'))
+                    await delay(10000)
+                }
                 process.exit(1)
                 return
             }
