@@ -68,9 +68,15 @@ mkdir -p public/uploads
 mkdir -p temp
 mkdir -p tmp
 
-# Keep restarting the bot if it exits — workflow stays running (never FAILED)
+# Start dashboard as persistent background process (stays alive even when bot crashes)
+# Dashboard reads logs from data/bot.log so it works across bot restarts
+node -e "require('./dashboard')" &
+DASHBOARD_PID=$!
+echo "🌐 Dashboard started as background process (PID $DASHBOARD_PID)"
+
+# Keep restarting the bot if it exits — SKIP_DASHBOARD=1 prevents port conflict
 while true; do
-    node index.js
+    SKIP_DASHBOARD=1 node index.js
     EXIT_CODE=$?
     echo "⚡ Bot exited (code $EXIT_CODE). Restarting in 3s..."
     sleep 3

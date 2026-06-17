@@ -43,11 +43,21 @@ const LOG_SUPPRESS = [
 ]
 function isSuppressed(msg) { return LOG_SUPPRESS.some(re => re.test(msg)) }
 
+const LOG_FILE = path.join(__dirname, 'data', 'bot.log')
+
 function addLog(level, args) {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')
     if (isSuppressed(msg)) return
-    global.dashboardLogs.push({ time: Date.now(), level, msg })
+    const entry = { time: Date.now(), level, msg }
+    global.dashboardLogs.push(entry)
     if (global.dashboardLogs.length > 200) global.dashboardLogs.shift()
+    // Also persist to file so background dashboard process can read it
+    try {
+        fs.appendFileSync(LOG_FILE, JSON.stringify(entry) + '\n')
+        // Keep file under 500 lines
+        const lines = fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(Boolean)
+        if (lines.length > 500) fs.writeFileSync(LOG_FILE, lines.slice(-400).join('\n') + '\n')
+    } catch (_) {}
 }
 console.log = (...args) => { addLog('info', args); originalLog(...args) }
 console.error = (...args) => { addLog('error', args); originalError(...args) }
@@ -97,7 +107,17 @@ app.get('/api/status', (req, res) => {
 
 // ── API: Logs ───────────────────────────────────────────────────────────────
 app.get('/api/logs', (req, res) => {
-    res.json(global.dashboardLogs.slice(-100).reverse())
+    // Use in-memory logs if available, else read from file (background process mode)
+    if (global.dashboardLogs && global.dashboardLogs.length > 0) {
+        return res.json(global.dashboardLogs.slice(-100).reverse())
+    }
+    try {
+        const lines = fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(Boolean)
+        const logs = lines.slice(-100).map(l => { try { return JSON.parse(l) } catch(_) { return null } }).filter(Boolean).reverse()
+        return res.json(logs)
+    } catch (_) {
+        return res.json([])
+    }
 })
 
 // ── API: Settings GET ───────────────────────────────────────────────────────
@@ -278,8 +298,15 @@ app.get('/{*splat}', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🌐 Dashboard running on port ${PORT}`)
+})
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        originalLog(`🌐 Dashboard port ${PORT} already in use — skipping bind`)
+    } else {
+        throw err
+    }
 })
 
 module.exports = app

@@ -17,6 +17,7 @@ COPY . .
 
 RUN mkdir -p data session public/uploads
 
+ENV PORT=5000
 EXPOSE 5000
 
 CMD ["bash", "start.sh"]
