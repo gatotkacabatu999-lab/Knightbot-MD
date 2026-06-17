@@ -1,0 +1,1 @@
+- [Knightbot-MD setup quirks](knightbot-setup.md) — Node 20 required; gtts/form-data blocked by security policy; stubs needed; sharp must rebuild on Node upgrade
