@@ -48,6 +48,7 @@ const { parsePhoneNumber } = require("libphonenumber-js")
 const { PHONENUMBER_MCC } = require('@whiskeysockets/baileys/lib/Utils/generics')
 const { rmSync, existsSync } = require('fs')
 const { join } = require('path')
+const QRCode = require('qrcode')
 
 // Import lightweight store
 const store = require('./lib/lightweight_store')
@@ -270,13 +271,19 @@ async function startXeonBotInc() {
         
         if (qr) {
             console.log(chalk.yellow('📱 QR Code generated. Please scan with WhatsApp.'))
+            try {
+                const qrDataUrl = await QRCode.toDataURL(qr, { margin: 1, width: 256 })
+                fs.writeFileSync('./data/qrState.json', JSON.stringify({ status: 'pending', qr: qrDataUrl, timestamp: Date.now() }))
+            } catch (e) { console.error('Error saving QR state:', e.message) }
         }
         
         if (connection === 'connecting') {
             console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
+            try { fs.writeFileSync('./data/qrState.json', JSON.stringify({ status: 'connecting', timestamp: Date.now() })) } catch {}
         }
         
         if (connection == "open") {
+            try { fs.writeFileSync('./data/qrState.json', JSON.stringify({ status: 'connected', timestamp: Date.now() })) } catch {}
             console.log(chalk.magenta(` `))
             console.log(chalk.yellow(`🌿Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)))
 
@@ -312,6 +319,7 @@ async function startXeonBotInc() {
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode
             console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, status: ${statusCode}`))
+            try { fs.writeFileSync('./data/qrState.json', JSON.stringify({ status: 'disconnected', timestamp: Date.now() })) } catch {}
 
             // Conflict (409/440) = same session active elsewhere (WhatsApp Web, other bot instance, etc.)
             if (statusCode === DisconnectReason.conflict || statusCode === 440 || statusCode === 409) {
